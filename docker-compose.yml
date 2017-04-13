@@ -1,0 +1,17 @@
+version: '2'
+services:
+    archstor:
+        build:
+            context: .
+            args:
+                PORT: "8914"
+                WORKERS: "4"
+                TIMEOUT: "30"
+        ports: 
+            - "8914:8914"
+        depends_on:
+            - mongo
+        environment:
+            - QREMIS_API_CONFIG=/code/config.py
+    mongo:
+        image: "mongo"
