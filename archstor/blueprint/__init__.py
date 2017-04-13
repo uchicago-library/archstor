@@ -1,4 +1,4 @@
-from os import makedirs
+from os import makedirs, remove
 import logging
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
@@ -25,14 +25,14 @@ except:
 
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
-from flask import Blueprint, abort, Response, stream_with_context, request
+from flask import Blueprint, abort, Response, stream_with_context
 from flask_restful import Resource, Api, reqparse
 
 
 BLUEPRINT = Blueprint('archstor', __name__)
 
 
-BLUEPRINT.config = {'BUFF': 1024*16}
+BLUEPRINT.config = {'BUFF': 1024*8}
 
 
 API = Api(BLUEPRINT)
@@ -50,10 +50,14 @@ def check_limit(x):
 class IStorageBackend(metaclass=ABCMeta):
     @abstractmethod
     def get_object_id_list(self, offset, limit):
+        # In: offset and limit ints
+        # Out: List of strs
         pass
 
     @abstractmethod
     def check_object_exists(self, id):
+        # In: id str
+        # Out: bool
         pass
 
     @abstractmethod
@@ -70,6 +74,8 @@ class IStorageBackend(metaclass=ABCMeta):
 
     @abstractmethod
     def del_object(self, id):
+        # In: str identifier
+        # Out: bool
         pass
 
 
@@ -87,7 +93,7 @@ class MongoStorageBackend(IStorageBackend):
         )
 
     def get_object_id_list(self, offset, limit):
-        return self.fs.find().sort('_id', ASCENDING).skip(offset).limit(limit)
+        return [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(offset).limit(limit)]
 
     def check_object_exists(self, id):
         if self.fs.find_one({"_id": id}):
@@ -111,7 +117,7 @@ class MongoStorageBackend(IStorageBackend):
         content_target.close()
 
     def del_object(self, id):
-        raise NotImplemented("Yet")
+        return self.fs.delete(id)
 
 
 class FileSystemStorageBackend(IStorageBackend):
@@ -142,11 +148,18 @@ class FileSystemStorageBackend(IStorageBackend):
         makedirs(str(content_path.parent), exist_ok=True)
         content.save(str(content_path))
 
+    def del_object(self, id):
+        content_path = Path(
+            self.lts_root, identifier_to_path(id), "arf", "content.file"
+        )
+        remove(str(content_path))
+        return True
 
-class S3ContentStorageBackend:
+
+class S3StorageBackend(IStorageBackend):
     # NOTE: THIS IS ENTIRELY UNTESTED
     # IT IS PRETTY MUCH A ROUGH DRAFT
-    def s3_init(self, bucket_name, region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
+    def __init__(self, bucket_name, region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
         # Helper init for inheriting classes.
         self.s3 = boto3.client(
             's3', region_name=region_name, aws_access_key_id=aws_access_key_id,
@@ -187,6 +200,12 @@ class S3ContentStorageBackend:
         self.s3.Object(BLUEPRINT.config['storage'].name, id).put(Body=content)
 
 
+class SwiftStorageBackend(IStorageBackend):
+    #TODO
+    def __init__(self, *args, **kwargs):
+        raise NotImplemented("Yet")
+
+
 class Root(Resource):
     def get(self):
         parser = reqparse.RequestParser()
@@ -196,7 +215,7 @@ class Root(Resource):
         args['limit'] = check_limit(args['limit'])
         return {
             "objects": [
-                {"identifier": x._id, "_link": API.url_for(Object, id=x._id)} for x
+                {"identifier": x, "_link": API.url_for(Object, id=x)} for x
                 in BLUEPRINT.config['storage'].get_object_id_list(args['offset'], args['limit'])
             ],
             "limit": args['limit'],
@@ -237,7 +256,7 @@ class Object(Resource):
             abort(500)
 
         BLUEPRINT.config['storage'].set_object(id, args['object'])
-        return True
+        return {'identifier': id, "added": True}
 
     def delete(self, id):
         if not BLUEPRINT.config['storage'].check_object_exists(id):
@@ -279,6 +298,8 @@ def handle_configs(setup_state):
     storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
 
     if storage_choice is "noerror":
+        # Assume the user knows what they're doing, and will set
+        # the config['storage'] option somewhere else
         pass
     else:
         storage_options[storage_choice](BLUEPRINT)
