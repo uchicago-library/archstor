@@ -12,7 +12,9 @@ Archstor is a web API wrapper which provides a simplified API for several object
 
 TODO
 
-### /<string:identifier>
+---
+
+### /\<string:identifier\>
 
 #### GET
 
