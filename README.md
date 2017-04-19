@@ -10,7 +10,16 @@ Archstor is a web API wrapper which provides a simplified API for several object
 
 #### GET
 
-TODO
+##### Args
+
+- offset (int): A listing offset
+- limit (int): A suggested number of returned listing values
+
+##### Returns
+
+```{"identifier": <object_id>, "_link": <object_link>, "offset": <listing_offset>, "limit": <listing_limit>}```
+
+
 
 ---
 
@@ -18,12 +27,20 @@ TODO
 
 #### GET
 
-TODO
+##### Returns
+
+The object bytestream
 
 
 #### PUT
 
-TODO
+##### Args
+
+- object: The bytestream to store
+
+##### Returns
+
+```{"identifier": <id>, "added": True}```
 
 ## Currently Supported Backends
 
