@@ -295,14 +295,15 @@ def handle_configs(setup_state):
     app = setup_state.app
     BLUEPRINT.config.update(app.config)
 
-    storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
+    if BLUEPRINT.config.get('STORAGE_BACKEND'):
+        storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
 
-    if storage_choice is "noerror":
-        # Assume the user knows what they're doing, and will set
-        # the config['storage'] option somewhere else
-        pass
-    else:
-        storage_options[storage_choice](BLUEPRINT)
+        if storage_choice is "noerror":
+            # Assume the user knows what they're doing, and will set
+            # the config['storage'] option somewhere else
+            pass
+        else:
+            storage_options[storage_choice](BLUEPRINT)
 
     if BLUEPRINT.config.get("VERBOSITY"):
         logging.basicConfig(level=BLUEPRINT.config['VERBOSITY'])
