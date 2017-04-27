@@ -93,8 +93,14 @@ class MongoStorageBackend(IStorageBackend):
         )
 
     def get_object_id_list(self, cursor, limit):
+        def peek(cursor, limit):
+            if len([x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
+                return str(cursor+limit)
+            return None
         cursor = int(cursor)
-        return [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+        results = [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+        next_cursor = peek(cursor, limit)
+        return next_cursor, results
 
     def check_object_exists(self, id):
         if self.fs.find_one({"_id": id}):
@@ -191,7 +197,7 @@ class S3StorageBackend(IStorageBackend):
 
 
 class SwiftStorageBackend(IStorageBackend):
-    #TODO
+    # TODO
     def __init__(self, *args, **kwargs):
         raise NotImplemented("Yet")
 
@@ -204,14 +210,19 @@ class Root(Resource):
         args = parser.parse_args()
         args['limit'] = check_limit(args['limit'])
         try:
+            next_cursor, result = BLUEPRINT.config['storage'].get_object_id_list(
+                args['cursor'],
+                args['limit']
+            )
             return {
                 "objects": [
                     {"identifier": x, "_link": API.url_for(Object, id=x)} for x
-                    in BLUEPRINT.config['storage'].get_object_id_list(args['cursor'], args['limit'])
+                    in result
                 ],
                 "pagination": {
                     "limit": args['limit'],
-                    "cursor": args['cursor']
+                    "cursor": args['cursor'],
+                    "next_cursor": next_cursor
                 },
                 "_self": {
                     "identifier": None,

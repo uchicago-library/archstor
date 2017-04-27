@@ -19,7 +19,27 @@ class ArchstorTestCase:
         self.response_200_json(rv)
 
     def test_rootPagination(self):
-        pass
+        ids = []
+        for x in range(1234):
+            id = uuid4().hex
+            obj = BytesIO(bytes("this is a test object ({})".format(str(x)), encoding="utf-8"))
+            rv = self.app.put("/{}".format(id), data={"object": (obj, "test.txt")})
+            rj = self.response_200_json(rv)
+            self.assertEqual(rj['added'], True)
+            ids.append(id)
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(len(ids), 1234)
+        comp_ids = []
+        next_cursor = "0"
+        while next_cursor:
+            rv = self.app.get("/", data={"cursor": next_cursor, "limit": 200})
+            rj = self.response_200_json(rv)
+            next_cursor = rj['pagination']['next_cursor']
+            for x in rj['objects']:
+                comp_ids.append(x['identifier'])
+        self.assertEqual(len(comp_ids), 1234)
+        for x in comp_ids:
+            self.assertIn(x, ids)
 
     def test_putObject(self):
         id = uuid4().hex
@@ -119,6 +139,9 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
     def test_getRoot(self):
         rv = self.app.get("/")
         self.assertEqual(rv.status_code, 500)
+
+    def test_rootPagination(self):
+        pass
 
 
 if __name__ == '__main__':
