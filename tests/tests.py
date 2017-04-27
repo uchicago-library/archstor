@@ -1,5 +1,6 @@
 import archstor
 import unittest
+from pymongo import MongoClient
 
 
 class ArchstorTestCase(unittest.TestCase):
