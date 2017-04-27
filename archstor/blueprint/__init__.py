@@ -92,8 +92,9 @@ class MongoStorageBackend(IStorageBackend):
             MongoClient(db_host, db_port)[db_name]
         )
 
-    def get_object_id_list(self, offset, limit):
-        return [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(offset).limit(limit)]
+    def get_object_id_list(self, cursor, limit):
+        cursor = int(cursor)
+        return [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
 
     def check_object_exists(self, id):
         if self.fs.find_one({"_id": id}):

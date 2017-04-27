@@ -1,18 +1,19 @@
 import archstor
 import unittest
+import json
 from pymongo import MongoClient
 
 
-class ArchstorTestCase(unittest.TestCase):
-    def setUp(self):
-        archstor.app.config['TESTING'] = True
-        self.app = archstor.app.test_client()
-
-    def tearDown(self):
-        pass
+class ArchstorTestCase:
+    def response_200_json(self, rv):
+        self.assertEqual(rv.status_code, 200)
+        rt = rv.data.decode()
+        rj = json.loads(rt)
+        return rj
 
     def test_getRoot(self):
-        pass
+        rv = self.app.get("/")
+        rj = self.response_200_json(rv)
 
     def test_rootPagination(self):
         pass
@@ -33,9 +34,10 @@ class ArchstorTestCase(unittest.TestCase):
         pass
 
 
-class MongoStorageTestCases(ArchstorTestCase):
+class MongoStorageTestCases(ArchstorTestCase, unittest.TestCase):
     def setUp(self):
-        super().setUp()
+        archstor.app.config['TESTING'] = True
+        self.app = archstor.app.test_client()
         archstor.blueprint.BLUEPRINT.config['storage'] = \
             archstor.blueprint.MongoStorageBackend(
                 'localhost', 27017, "testing"
@@ -48,7 +50,6 @@ class MongoStorageTestCases(ArchstorTestCase):
             27017
         )
         c.drop_database("testing")
-
 
 
 if __name__ == '__main__':
