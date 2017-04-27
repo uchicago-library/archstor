@@ -17,7 +17,7 @@ Archstor is a web API wrapper which provides a simplified API for several object
 
 ##### Returns
 
-```{"objects": ["identifier": <object_id>, "_link": <object_link> for each object in the listing], "offset": <listing_offset>, "limit": <listing_limit>}```
+```{"objects": ["identifier": <object_id>, "_link": <object_link> for each object in the listing], "pagination": {"cursor": <listing_cursor>, "limit": <listing_limit>, "next_cursor": <next_cursor_to_continue_listing>}}```
 
 
 
@@ -41,6 +41,12 @@ The object bytestream
 ##### Returns
 
 ```{"identifier": <id>, "added": True}```
+
+#### DELETE
+
+##### Returns
+
+```{"identifier": <id>, "deleted": True}```
 
 ## Currently Supported Backends
 

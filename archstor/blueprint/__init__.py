@@ -49,7 +49,7 @@ def check_limit(x):
 
 class IStorageBackend(metaclass=ABCMeta):
     @abstractmethod
-    def get_object_id_list(self, offset, limit):
+    def get_object_id_list(self, cursor, limit):
         # In: offset and limit ints
         # Out: List of strs
         pass
@@ -92,8 +92,15 @@ class MongoStorageBackend(IStorageBackend):
             MongoClient(db_host, db_port)[db_name]
         )
 
-    def get_object_id_list(self, offset, limit):
-        return [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(offset).limit(limit)]
+    def get_object_id_list(self, cursor, limit):
+        def peek(cursor, limit):
+            if len([x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
+                return str(cursor+limit)
+            return None
+        cursor = int(cursor)
+        results = [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+        next_cursor = peek(cursor, limit)
+        return next_cursor, results
 
     def check_object_exists(self, id):
         if self.fs.find_one({"_id": id}):
@@ -104,14 +111,7 @@ class MongoStorageBackend(IStorageBackend):
         gr_entry = self.fs.find_one({"_id": id})
         return gr_entry
 
-        if self.fs.find_one({"_id": id}):
-            return True
-        return False
-
     def set_object(self, id, content):
-        if self.check_object_exists(id):
-            raise RuntimeError("Does not support overwriting existing " +
-                               "objects! Object exists {}".format(id))
         content_target = self.fs.new_file(_id=id)
         content.save(content_target)
         content_target.close()
@@ -124,7 +124,7 @@ class FileSystemStorageBackend(IStorageBackend):
     def __init__(self, lts_root):
         self.lts_root = Path(lts_root)
 
-    def get_object_id_list(self):
+    def get_object_id_list(self, cursor, limit):
         raise NotImplementedError()
 
     def get_object(self, id):
@@ -140,8 +140,6 @@ class FileSystemStorageBackend(IStorageBackend):
         return content_path.is_file()
 
     def set_object(self, id, content):
-        if self.check_object_exists(id):
-            raise ValueError()
         content_path = Path(
             self.lts_root, identifier_to_path(id), "arf", "content.file"
         )
@@ -195,13 +193,11 @@ class S3StorageBackend(IStorageBackend):
                 return False
 
     def set_object(self, id, content):
-        if self.check_object_exists(id):
-            raise ValueError()
         self.s3.Object(BLUEPRINT.config['storage'].name, id).put(Body=content)
 
 
 class SwiftStorageBackend(IStorageBackend):
-    #TODO
+    # TODO
     def __init__(self, *args, **kwargs):
         raise NotImplemented("Yet")
 
@@ -209,18 +205,32 @@ class SwiftStorageBackend(IStorageBackend):
 class Root(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument("offset", type=int, default=0)
+        parser.add_argument("cursor", type=str, default="0")
         parser.add_argument("limit", type=int, default=1000)
         args = parser.parse_args()
         args['limit'] = check_limit(args['limit'])
-        return {
-            "objects": [
-                {"identifier": x, "_link": API.url_for(Object, id=x)} for x
-                in BLUEPRINT.config['storage'].get_object_id_list(args['offset'], args['limit'])
-            ],
-            "limit": args['limit'],
-            "offset": args['offset']
-        }
+        try:
+            next_cursor, result = BLUEPRINT.config['storage'].get_object_id_list(
+                args['cursor'],
+                args['limit']
+            )
+            return {
+                "objects": [
+                    {"identifier": x, "_link": API.url_for(Object, id=x)} for x
+                    in result
+                ],
+                "pagination": {
+                    "limit": args['limit'],
+                    "cursor": args['cursor'],
+                    "next_cursor": next_cursor
+                },
+                "_self": {
+                    "identifier": None,
+                    "_link": API.url_for(Root)
+                }
+            }
+        except NotImplementedError:
+            abort(500)
 
 
 class Object(Resource):
@@ -255,12 +265,15 @@ class Object(Resource):
             )
             abort(500)
 
+        if BLUEPRINT.config['storage'].check_object_exists(id):
+            abort(500)
+
         BLUEPRINT.config['storage'].set_object(id, args['object'])
         return {'identifier': id, "added": True}
 
     def delete(self, id):
         if not BLUEPRINT.config['storage'].check_object_exists(id):
-            abort(404)
+            return {"identifier": id, "deleted": True}
         BLUEPRINT.config['storage'].del_object(id)
         return {"identifier": id, "deleted": True}
 
@@ -295,14 +308,15 @@ def handle_configs(setup_state):
     app = setup_state.app
     BLUEPRINT.config.update(app.config)
 
-    storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
+    if BLUEPRINT.config.get('STORAGE_BACKEND'):
+        storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
 
-    if storage_choice is "noerror":
-        # Assume the user knows what they're doing, and will set
-        # the config['storage'] option somewhere else
-        pass
-    else:
-        storage_options[storage_choice](BLUEPRINT)
+        if storage_choice is "noerror":
+            # Assume the user knows what they're doing, and will set
+            # the config['storage'] option somewhere else
+            pass
+        else:
+            storage_options[storage_choice](BLUEPRINT)
 
     if BLUEPRINT.config.get("VERBOSITY"):
         logging.basicConfig(level=BLUEPRINT.config['VERBOSITY'])
