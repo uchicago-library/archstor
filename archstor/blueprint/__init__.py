@@ -49,7 +49,7 @@ def check_limit(x):
 
 class IStorageBackend(metaclass=ABCMeta):
     @abstractmethod
-    def get_object_id_list(self, offset, limit):
+    def get_object_id_list(self, cursor, limit):
         # In: offset and limit ints
         # Out: List of strs
         pass
@@ -105,14 +105,7 @@ class MongoStorageBackend(IStorageBackend):
         gr_entry = self.fs.find_one({"_id": id})
         return gr_entry
 
-        if self.fs.find_one({"_id": id}):
-            return True
-        return False
-
     def set_object(self, id, content):
-        if self.check_object_exists(id):
-            raise RuntimeError("Does not support overwriting existing " +
-                               "objects! Object exists {}".format(id))
         content_target = self.fs.new_file(_id=id)
         content.save(content_target)
         content_target.close()
@@ -125,7 +118,7 @@ class FileSystemStorageBackend(IStorageBackend):
     def __init__(self, lts_root):
         self.lts_root = Path(lts_root)
 
-    def get_object_id_list(self):
+    def get_object_id_list(self, cursor, limit):
         raise NotImplementedError()
 
     def get_object(self, id):
@@ -141,8 +134,6 @@ class FileSystemStorageBackend(IStorageBackend):
         return content_path.is_file()
 
     def set_object(self, id, content):
-        if self.check_object_exists(id):
-            raise ValueError()
         content_path = Path(
             self.lts_root, identifier_to_path(id), "arf", "content.file"
         )
@@ -196,8 +187,6 @@ class S3StorageBackend(IStorageBackend):
                 return False
 
     def set_object(self, id, content):
-        if self.check_object_exists(id):
-            raise ValueError()
         self.s3.Object(BLUEPRINT.config['storage'].name, id).put(Body=content)
 
 
@@ -214,20 +203,23 @@ class Root(Resource):
         parser.add_argument("limit", type=int, default=1000)
         args = parser.parse_args()
         args['limit'] = check_limit(args['limit'])
-        return {
-            "objects": [
-                {"identifier": x, "_link": API.url_for(Object, id=x)} for x
-                in BLUEPRINT.config['storage'].get_object_id_list(args['cursor'], args['limit'])
-            ],
-            "pagination": {
-                "limit": args['limit'],
-                "cursor": args['cursor']
-            },
-            "_self": {
-                "identifier": None,
-                "_link": API.url_for(Root)
+        try:
+            return {
+                "objects": [
+                    {"identifier": x, "_link": API.url_for(Object, id=x)} for x
+                    in BLUEPRINT.config['storage'].get_object_id_list(args['cursor'], args['limit'])
+                ],
+                "pagination": {
+                    "limit": args['limit'],
+                    "cursor": args['cursor']
+                },
+                "_self": {
+                    "identifier": None,
+                    "_link": API.url_for(Root)
+                }
             }
-        }
+        except NotImplementedError:
+            abort(500)
 
 
 class Object(Resource):
@@ -248,8 +240,6 @@ class Object(Resource):
         )
 
     def put(self, id):
-        # Currenty this is a silent clobber, is this
-        # a desirable functionality?
         parser = reqparse.RequestParser()
         parser.add_argument(
             "object",
@@ -264,15 +254,15 @@ class Object(Resource):
             )
             abort(500)
 
+        if BLUEPRINT.config['storage'].check_object_exists(id):
+            abort(500)
+
         BLUEPRINT.config['storage'].set_object(id, args['object'])
         return {'identifier': id, "added": True}
 
     def delete(self, id):
-        # This currently 404s on the object not existing before
-        # being deleted. This _is not_ the same as the idnest
-        # behavior. Should this be changed?
         if not BLUEPRINT.config['storage'].check_object_exists(id):
-            abort(404)
+            return {"identifier": id, "deleted": True}
         BLUEPRINT.config['storage'].del_object(id)
         return {"identifier": id, "deleted": True}
 
