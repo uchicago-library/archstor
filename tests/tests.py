@@ -1,6 +1,7 @@
 import archstor
 import unittest
 import json
+from uuid import uuid4
 from pymongo import MongoClient
 
 
@@ -18,11 +19,18 @@ class ArchstorTestCase:
     def test_rootPagination(self):
         pass
 
+    def test_putObject(self):
+        # Probably use BytesIO here, instead of fooling with
+        # determining paths for relative files in the test directory
+        pass
+
     def test_getObject(self):
         pass
 
-    def test_putObject(self):
-        pass
+    def test_getNonexistantObject(self):
+        rv = self.app.get("/{}".format(uuid4().hex))
+        self.assertEqual(rv.status_code, 404)
+
 
     def test_deleteObject(self):
         pass
