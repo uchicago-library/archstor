@@ -209,17 +209,23 @@ class SwiftStorageBackend(IStorageBackend):
 class Root(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument("offset", type=int, default=0)
+        parser.add_argument("cursor", type=str, default="0")
         parser.add_argument("limit", type=int, default=1000)
         args = parser.parse_args()
         args['limit'] = check_limit(args['limit'])
         return {
             "objects": [
                 {"identifier": x, "_link": API.url_for(Object, id=x)} for x
-                in BLUEPRINT.config['storage'].get_object_id_list(args['offset'], args['limit'])
+                in BLUEPRINT.config['storage'].get_object_id_list(args['cursor'], args['limit'])
             ],
-            "limit": args['limit'],
-            "offset": args['offset']
+            "pagination": {
+                "limit": args['limit'],
+                "cursor": args['cursor']
+            },
+            "_self": {
+                "identifier": None,
+                "_link": API.url_for(Root)
+            }
         }
 
 
@@ -241,6 +247,8 @@ class Object(Resource):
         )
 
     def put(self, id):
+        # Currenty this is a silent clobber, is this
+        # a desirable functionality?
         parser = reqparse.RequestParser()
         parser.add_argument(
             "object",
@@ -259,6 +267,9 @@ class Object(Resource):
         return {'identifier': id, "added": True}
 
     def delete(self, id):
+        # This currently 404s on the object not existing before
+        # being deleted. This _is not_ the same as the idnest
+        # behavior. Should this be changed?
         if not BLUEPRINT.config['storage'].check_object_exists(id):
             abort(404)
         BLUEPRINT.config['storage'].del_object(id)
