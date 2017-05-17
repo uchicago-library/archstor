@@ -1,0 +1,7 @@
+language: python
+python:
+    - "3.5"
+install: "pip install . && pip install git+git://github.com/bnbalsamo/pypairtree.git"
+services:
+    - mongodb
+script: python tests/tests.py 
