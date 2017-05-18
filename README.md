@@ -1,5 +1,5 @@
 # Archstor
-[![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=coveralls_integration)](https://coveralls.io/github/bnbalsamo/archstor?branch=master) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=coveralls_integration)](https://coveralls.io/github/bnbalsamo/archstor?branch=master)
+[![Build Status](https://travis-ci.org/bnbalsamo/archstor.svg?branch=master)](https://travis-ci.org/bnbalsamo/archstor) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=coveralls_integration)](https://coveralls.io/github/bnbalsamo/archstor?branch=master)
 
 ## About
 
