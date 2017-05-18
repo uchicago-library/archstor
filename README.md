@@ -1,4 +1,5 @@
 # Archstor
+[![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=coveralls_integration)](https://coveralls.io/github/bnbalsamo/archstor?branch=master) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=coveralls_integration)](https://coveralls.io/github/bnbalsamo/archstor?branch=master)
 
 ## About
 
