@@ -6,6 +6,6 @@ before_script:
 install: "pip install . && pip install git+git://github.com/bnbalsamo/pypairtree.git"
 services:
     - mongodb
-script: coverage run --source archstor tests/tests.py
+script: coverage run --source archstor tests.py
 after_success:
     - coveralls
