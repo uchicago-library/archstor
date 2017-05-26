@@ -79,6 +79,7 @@ class ArchstorTestCase:
         self.assertEqual(grv.status_code, 404)
 
     def test_deleteNonexistantObject(self):
+        id = uuid4().hex
         # Delete the object
         drv = self.app.delete("/{}".format(id))
         drj = self.response_200_json(drv)
@@ -91,7 +92,7 @@ class ArchstorTestCase:
         id = uuid4().hex
         obj = BytesIO(b"this is a test object")
         rv = self.app.put("/&#47;&#46;&#46;&#47;{}".format(id), data={"object": (obj, "test.txt")})
-        self.assertEqual(rv.status_code, 500)
+        self.assertEqual(rv.status_code, 400)
 
     def test_objectOverwrite(self):
         id = uuid4().hex
@@ -101,7 +102,7 @@ class ArchstorTestCase:
         self.assertEqual(rj1['added'], True)
         obj2 = BytesIO(b"this is another object")
         rv2 = self.app.put("/{}".format(id), data={"object": (obj2, "test.txt")})
-        self.assertEqual(rv2.status_code, 500)
+        self.assertEqual(rv2.status_code, 400)
 
 
 class MongoStorageTestCases(ArchstorTestCase, unittest.TestCase):
@@ -138,7 +139,7 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
 
     def test_getRoot(self):
         rv = self.app.get("/")
-        self.assertEqual(rv.status_code, 500)
+        self.assertEqual(rv.status_code, 501)
 
     def test_rootPagination(self):
         pass
