@@ -25,7 +25,7 @@ except:
 
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
-from flask import Blueprint, abort, Response, stream_with_context
+from flask import Blueprint, Response, stream_with_context, jsonify
 from flask_restful import Resource, Api, reqparse
 
 
@@ -41,10 +41,68 @@ API = Api(BLUEPRINT)
 log = logging.getLogger(__name__)
 
 
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    error_name = "Error"
+    status_code = 500
+    message = ""
+
+    def __init__(self, message=None):
+        if message is not None:
+            self.message = message
+
+    def to_dict(self):
+        return {"message": self.message,
+                "error_name": self.error_name}
+
+
+class UserError(Error):
+    error_name = "UserError"
+    status_code = 400
+
+
+class ServerError(Error):
+    error_name = "ServerError"
+    status_code = 500
+
+
+class NotFoundError(Error):
+    error_name = "NotFoundError"
+    status_code = 404
+
+
+class ObjectNotFoundError(NotFoundError):
+    error_name = "ObjectNotFoundError"
+
+
+class ObjectAlreadyExistsError(UserError):
+    error_name = "ObjectAlreadyExistsError"
+
+
+class FunctionalityOmittedError(Error):
+    error_name = "FunctionalityOmittedError"
+    status_code = 501
+
+
+@BLUEPRINT.errorhandler(Error)
+def handle_errors(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+
 def check_limit(x):
     if x > BLUEPRINT.config.get("MAX_LIMIT", 1000):
         return BLUEPRINT.config.get("MAX_LIMIT", 1000)
     return x
+
+
+def check_id(id):
+    if id != secure_filename(id):
+        log.critical(
+            "Insecure identifier detected! ({})".format(str(id))
+        )
+        raise UserError("Insecure identifier!")
 
 
 class IStorageBackend(metaclass=ABCMeta):
@@ -109,9 +167,13 @@ class MongoStorageBackend(IStorageBackend):
 
     def get_object(self, id):
         gr_entry = self.fs.find_one({"_id": id})
+        if gr_entry is None:
+            raise ObjectNotFoundError(str(id))
         return gr_entry
 
     def set_object(self, id, content):
+        if self.check_object_exists(id):
+            raise ObjectAlreadyExistsError(str(id))
         content_target = self.fs.new_file(_id=id)
         content.save(content_target)
         content_target.close()
@@ -125,12 +187,16 @@ class FileSystemStorageBackend(IStorageBackend):
         self.lts_root = Path(lts_root)
 
     def get_object_id_list(self, cursor, limit):
-        raise NotImplementedError()
+        raise FunctionalityOmittedError(
+            "This functionality is not available while using this storage backend"
+        )
 
     def get_object(self, id):
         content_path = Path(
             self.lts_root, identifier_to_path(id), "arf", "content.file"
         )
+        if not content_path.is_file():
+            raise ObjectNotFoundError(str(id))
         return open(str(content_path))
 
     def check_object_exists(self, id):
@@ -143,6 +209,8 @@ class FileSystemStorageBackend(IStorageBackend):
         content_path = Path(
             self.lts_root, identifier_to_path(id), "arf", "content.file"
         )
+        if self.check_object_exists(id):
+            raise ObjectAlreadyExistsError(str(id))
         makedirs(str(content_path.parent), exist_ok=True)
         content.save(str(content_path))
 
@@ -150,6 +218,8 @@ class FileSystemStorageBackend(IStorageBackend):
         content_path = Path(
             self.lts_root, identifier_to_path(id), "arf", "content.file"
         )
+        if not content_path.exists():
+            return True
         remove(str(content_path))
         return True
 
@@ -209,28 +279,25 @@ class Root(Resource):
         parser.add_argument("limit", type=int, default=1000)
         args = parser.parse_args()
         args['limit'] = check_limit(args['limit'])
-        try:
-            next_cursor, result = BLUEPRINT.config['storage'].get_object_id_list(
-                args['cursor'],
-                args['limit']
-            )
-            return {
-                "objects": [
-                    {"identifier": x, "_link": API.url_for(Object, id=x)} for x
-                    in result
-                ],
-                "pagination": {
-                    "limit": args['limit'],
-                    "cursor": args['cursor'],
-                    "next_cursor": next_cursor
-                },
-                "_self": {
-                    "identifier": None,
-                    "_link": API.url_for(Root)
-                }
+        next_cursor, result = BLUEPRINT.config['storage'].get_object_id_list(
+            args['cursor'],
+            args['limit']
+        )
+        return {
+            "objects": [
+                {"identifier": x, "_link": API.url_for(Object, id=x)} for x
+                in result
+            ],
+            "pagination": {
+                "limit": args['limit'],
+                "cursor": args['cursor'],
+                "next_cursor": next_cursor
+            },
+            "_self": {
+                "identifier": None,
+                "_link": API.url_for(Root)
             }
-        except NotImplementedError:
-            abort(500)
+        }
 
 
 class Object(Resource):
@@ -242,8 +309,7 @@ class Object(Resource):
                 yield data
                 data = e.read(BLUEPRINT.config['BUFF'])
 
-        if not BLUEPRINT.config['storage'].check_object_exists(id):
-            abort(404)
+        check_id(id)
         return Response(
             stream_with_context(
                 generate(BLUEPRINT.config['storage'].get_object(id))
@@ -259,21 +325,12 @@ class Object(Resource):
             location='files'
         )
         args = parser.parse_args()
-        if id != secure_filename(id):
-            log.critical(
-                "Insecure identifier detected! ({})".format(id)
-            )
-            abort(500)
-
-        if BLUEPRINT.config['storage'].check_object_exists(id):
-            abort(500)
+        check_id(id)
 
         BLUEPRINT.config['storage'].set_object(id, args['object'])
         return {'identifier': id, "added": True}
 
     def delete(self, id):
-        if not BLUEPRINT.config['storage'].check_object_exists(id):
-            return {"identifier": id, "deleted": True}
         BLUEPRINT.config['storage'].del_object(id)
         return {"identifier": id, "deleted": True}
 
