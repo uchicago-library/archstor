@@ -145,5 +145,27 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
         pass
 
 
+#class SwiftStorageTestCase(ArchstorTestCase, unittest.TestCase):
+#    def setUp(self):
+#        archstor.app.config['TESTING'] = True
+#        self.app = archstor.app.test_client()
+#        archstor.blueprint.BLUEPRINT.config['storage'] = \
+#            archstor.blueprint.SwiftStorageBackend(
+#                "http://127.0.0.1:12345/auth/v1.0",
+#                '1',
+#                "test:tester",
+#                "RANDOMLYGENERATEDPASSWORDHERE",
+#                'test',
+#                container_name='testing'
+#            )
+#
+#    def tearDown(self):
+#        cursor = True
+#        while cursor:
+#            cursor, objs = archstor.blueprint.BLUEPRINT.config['storage'].get_object_id_list("0", None)
+#            for x in objs:
+#                archstor.blueprint.BLUEPRINT.config['storage'].del_object(x)
+
+
 if __name__ == '__main__':
     unittest.main()
