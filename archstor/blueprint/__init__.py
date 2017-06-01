@@ -291,7 +291,7 @@ class SwiftStorageBackend(IStorageBackend):
         self.os_options = os_options
         self.container_name = container_name
         self._opts = {'auth': self.auth_url, 'user': self.user, 'key': self.key,
-                      'use_slo': True, 'segment_size': 1024*8, 'auth_version': self.auth_version}
+                      'use_slo': True, 'segment_size': BLUEPRINT.config['BUFF'], 'auth_version': self.auth_version}
         self._opts = dict(
                 swiftclient.service._default_global_options,
                 **dict(swiftclient.service._default_local_options, **self._opts)
@@ -300,7 +300,7 @@ class SwiftStorageBackend(IStorageBackend):
         # Check to be sure our LTS container exists
         conn = self.create_connection()
         try:
-            rv = conn.head_container(self.container_name)
+            conn.head_container(self.container_name)
         except ClientException as e:
             if e.http_status == 404:
                 conn.put_container(self.container_name)
@@ -326,12 +326,13 @@ class SwiftStorageBackend(IStorageBackend):
             if limit is not None and len(listing) >= limit:
                 break
         conn.close()
+
         return cursor, results
 
     def get_object(self, id):
         try:
             conn = self.create_connection()
-            headers, contents = conn.get_object(self.container_name, id, resp_chunk_size=256)
+            headers, contents = conn.get_object(self.container_name, id, resp_chunk_size=BLUEPRINT.config['BUFF'])
             conn.close()
             return contents
         except ClientException as e:
@@ -357,7 +358,7 @@ class SwiftStorageBackend(IStorageBackend):
         if self.check_object_exists(id):
             raise ObjectAlreadyExistsError()
         conn = self.create_connection()
-        conn.put_object(self.container_name, id, contents=content)
+        conn.put_object(self.container_name, id, contents=content, chunk_size=BLUEPRINT.config['BUFF'])
         conn.close()
 
     def del_object(self, id):
