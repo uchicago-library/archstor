@@ -12,6 +12,9 @@ services:
         depends_on:
             - mongo
         environment:
-            - QREMIS_API_CONFIG=/code/config.py
+            - ARCHSTOR_STORAGE_BACKEND=mongo
+            - ARCHSTOR_MONGO_HOST=mongo
+            - ARCHSTOR_MONGO_PORT=27017
+            - ARCHSTOR_MONGO_DB=lts
     mongo:
         image: "mongo"

@@ -40,7 +40,7 @@ from flask_restful import Resource, Api, reqparse
 BLUEPRINT = Blueprint('archstor', __name__)
 
 
-BLUEPRINT.config = {'BUFF': 1024*8}
+BLUEPRINT.config = {}
 
 
 API = Api(BLUEPRINT)
@@ -473,6 +473,9 @@ def handle_configs(setup_state):
 
     app = setup_state.app
     BLUEPRINT.config.update(app.config)
+
+    if BLUEPRINT.config.get('DEFER_CONFIG'):
+        return
 
     if BLUEPRINT.config.get('STORAGE_BACKEND'):
         storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
