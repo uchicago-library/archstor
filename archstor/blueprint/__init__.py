@@ -23,6 +23,14 @@ except:
     # Hope we're not using a file system backend
     pass
 
+try:
+    import swiftclient
+    import swiftclient.service
+    from swiftclient.exceptions import ClientException
+except:
+    # Hope we're not using a swift backend
+    pass
+
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 from flask import Blueprint, Response, stream_with_context, jsonify
@@ -267,9 +275,103 @@ class S3StorageBackend(IStorageBackend):
 
 
 class SwiftStorageBackend(IStorageBackend):
-    # TODO
-    def __init__(self, *args, **kwargs):
-        raise NotImplemented("Yet")
+    def __init__(self,
+                 auth_url,
+                 auth_version,
+                 user,
+                 key,
+                 tenant_name,
+                 os_options={},
+                 container_name="lts"):
+        self.auth_url = auth_url
+        self.auth_version = auth_version
+        self.user = user
+        self.key = key
+        self.tenant_name = tenant_name
+        self.os_options = os_options
+        self.container_name = container_name
+        self._opts = {'auth': self.auth_url, 'user': self.user, 'key': self.key,
+                      'use_slo': True, 'segment_size': BLUEPRINT.config['BUFF'], 'auth_version': self.auth_version}
+        self._opts = dict(
+                swiftclient.service._default_global_options,
+                **dict(swiftclient.service._default_local_options, **self._opts)
+            )
+        swiftclient.service.process_options(self._opts)
+        # Check to be sure our LTS container exists
+        conn = self.create_connection()
+        try:
+            conn.head_container(self.container_name)
+        except ClientException as e:
+            if e.http_status == 404:
+                conn.put_container(self.container_name)
+        conn.close()
+
+    def create_connection(self):
+        return swiftclient.service.get_conn(self._opts)
+
+    def get_object_id_list(self, cursor, limit):
+        if cursor is "0":
+            cursor = None
+        conn = self.create_connection()
+        results = []
+        listing = True
+        while listing:
+            headers, listing = conn.get_container(self.container_name, marker=cursor, limit=limit)
+            for x in listing:
+                results.append(x['name'])
+            if not listing:
+                cursor = None
+                break
+            cursor = listing[-1].get('name', listing[-1].get('subdir'))
+            if limit is not None and len(listing) >= limit:
+                break
+        conn.close()
+
+        return cursor, results
+
+    def get_object(self, id):
+        try:
+            conn = self.create_connection()
+            headers, contents = conn.get_object(self.container_name, id, resp_chunk_size=BLUEPRINT.config['BUFF'])
+            conn.close()
+            return contents
+        except ClientException as e:
+            if e.http_status == 404:
+                conn.close()
+                raise ObjectNotFoundError()
+            conn.close()
+
+    def check_object_exists(self, id):
+        conn = self.create_connection()
+        try:
+            conn.head_object(self.container_name, id)
+            conn.close()
+            return True
+        except ClientException as e:
+            if e.http_status == 404:
+                conn.close()
+                return False
+            conn.close()
+            raise
+
+    def set_object(self, id, content):
+        if self.check_object_exists(id):
+            raise ObjectAlreadyExistsError()
+        conn = self.create_connection()
+        conn.put_object(self.container_name, id, contents=content, chunk_size=BLUEPRINT.config['BUFF'])
+        conn.close()
+
+    def del_object(self, id):
+        try:
+            conn = self.create_connection()
+            conn.delete_object(self.container_name, id)
+            conn.close()
+        except ClientException as e:
+            if e.http_status == 404:
+                conn.close()
+                return
+            conn.close()
+            raise
 
 
 class Root(Resource):
@@ -347,11 +449,18 @@ def handle_configs(setup_state):
         root = bp.config['LTS_ROOT']
         bp.config['storage'] = FileSystemStorageBackend(root)
 
-    def configure_s3(bp):
-        # TODO
-        raise NotImplemented("Yet")
-
     def configure_swift(bp):
+        bp.config['storage'] = SwiftStorageBackend(
+            bp.config['SWIFT_AUTH_URL'],
+            bp.config['SWIFT_AUTH_VERSION'],
+            bp.config['SWIFT_USER'],
+            bp.config['SWIFT_KEY'],
+            bp.config['SWIFT_TENANT_NAME'],
+            os_options=bp.config.get('SWIFT_OS_OPTIONS', {}),
+            container_name=bp.config.get('SWIFT_CONTAINER_NAME', 'lts')
+        )
+
+    def configure_s3(bp):
         # TODO
         raise NotImplemented("Yet")
 
