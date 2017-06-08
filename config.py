@@ -1,2 +1,0 @@
-STORAGE_BACKEND="swift"
-MONGO_HOST="mongo"

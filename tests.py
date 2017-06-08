@@ -1,10 +1,15 @@
-import archstor
 import unittest
 import json
 from uuid import uuid4
 from io import BytesIO
 from pymongo import MongoClient
 from tempfile import TemporaryDirectory
+
+from os import environ
+
+environ['DEFER_CONFIG'] = "True"
+
+import archstor
 
 
 class ArchstorTestCase:
