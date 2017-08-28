@@ -1,6 +1,9 @@
 # Archstor
 [![Build Status](https://travis-ci.org/bnbalsamo/archstor.svg?branch=master)](https://travis-ci.org/bnbalsamo/archstor) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=master)](https://coveralls.io/github/bnbalsamo/archstor?branch=master)
+
 (Note: Coverage status out of coveralls looks crummy, as it's not testing any of the swift backend code (though it has tests which pass in local environments) or the rough draft s3 code which is inaccessible at the moment.)
+
+v0.0.1
 
 ## About
 

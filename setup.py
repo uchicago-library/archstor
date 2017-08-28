@@ -6,6 +6,7 @@ def readme():
 
 setup(
     name = "archstor",
+    version = "0.0.1",
     description = "abstract layer for archival object storage",
     long_description = readme(),
     packages = find_packages(

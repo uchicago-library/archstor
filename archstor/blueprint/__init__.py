@@ -3,6 +3,8 @@ import logging
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
+__version__ = "0.0.1"
+
 try:
     import boto3
     import botocore
@@ -437,6 +439,11 @@ class Object(Resource):
         return {"identifier": id, "deleted": True}
 
 
+class Version(Resource):
+    def get(self):
+        return {"version": __version__}
+
+
 @BLUEPRINT.record
 def handle_configs(setup_state):
     def configure_mongo(bp):
@@ -494,3 +501,4 @@ def handle_configs(setup_state):
 
 API.add_resource(Root, "/")
 API.add_resource(Object, "/<string:id>")
+API.add_resource(Version, "/version")
