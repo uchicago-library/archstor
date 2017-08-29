@@ -109,6 +109,11 @@ class ArchstorTestCase:
         rv2 = self.app.put("/{}".format(id), data={"object": (obj2, "test.txt")})
         self.assertEqual(rv2.status_code, 400)
 
+    def test_Version(self):
+        rv = self.app.get("/version")
+        rj = self.response_200_json(rv)
+        self.assertEqual(rj['version'], archstor.blueprint.__version__)
+
 
 class MongoStorageTestCases(ArchstorTestCase, unittest.TestCase):
     def setUp(self):
