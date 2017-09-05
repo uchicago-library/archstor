@@ -4,12 +4,9 @@ services:
         build:
             context: .
             args:
-                PORT: "8914"
-                WORKERS: "4"
-                TIMEOUT: "30"
                 SECRET_KEY: "provideThisAtBuildTime"
         ports: 
-            - "8914:8914"
+            - "5000:80"
         depends_on:
             - mongo
         environment:
