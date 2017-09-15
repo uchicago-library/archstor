@@ -1,9 +1,15 @@
-from os import makedirs, remove
+"""
+archstor
+"""
 import logging
+from os import makedirs, remove
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
-__version__ = "0.0.1"
+from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
+from flask import Blueprint, jsonify, Response, stream_with_context
+from flask_restful import Resource, Api, reqparse
 
 try:
     import boto3
@@ -33,65 +39,24 @@ except:
     # Hope we're not using a swift backend
     pass
 
-from werkzeug.datastructures import FileStorage
-from werkzeug.utils import secure_filename
-from flask import Blueprint, Response, stream_with_context, jsonify
-from flask_restful import Resource, Api, reqparse
+from .exceptions import Error, ServerError, NotFoundError, ObjectNotFoundError, \
+    ObjectAlreadyExistsError, FunctionalityOmittedError, UserError
+
+
+__author__ = "Brian Balsamo"
+__email__ = "brian@brianbalsamo.com"
+__version__ = "0.0.1"
 
 
 BLUEPRINT = Blueprint('archstor', __name__)
 
-
-BLUEPRINT.config = {}
-
+BLUEPRINT.config = {
+    'BUFF': 1024 * 1000
+}
 
 API = Api(BLUEPRINT)
 
-
 log = logging.getLogger(__name__)
-
-
-class Error(Exception):
-    """Base class for exceptions in this module."""
-    error_name = "Error"
-    status_code = 500
-    message = ""
-
-    def __init__(self, message=None):
-        if message is not None:
-            self.message = message
-
-    def to_dict(self):
-        return {"message": self.message,
-                "error_name": self.error_name}
-
-
-class UserError(Error):
-    error_name = "UserError"
-    status_code = 400
-
-
-class ServerError(Error):
-    error_name = "ServerError"
-    status_code = 500
-
-
-class NotFoundError(Error):
-    error_name = "NotFoundError"
-    status_code = 404
-
-
-class ObjectNotFoundError(NotFoundError):
-    error_name = "ObjectNotFoundError"
-
-
-class ObjectAlreadyExistsError(UserError):
-    error_name = "ObjectAlreadyExistsError"
-
-
-class FunctionalityOmittedError(Error):
-    error_name = "FunctionalityOmittedError"
-    status_code = 501
 
 
 @BLUEPRINT.errorhandler(Error)
@@ -162,8 +127,8 @@ class MongoStorageBackend(IStorageBackend):
 
     def get_object_id_list(self, cursor, limit):
         def peek(cursor, limit):
-            if len([x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
-                return str(cursor+limit)
+            if len([x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor + limit)]) > 0:
+                return str(cursor + limit)
             return None
         cursor = int(cursor)
         results = [x._id for x in self.fs.find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
@@ -257,7 +222,7 @@ class S3StorageBackend(IStorageBackend):
 
     def get_object_id_list(self, offset, limit):
         # TODO: Actually use api implementations of item queries
-        return self.s3.list_objects(Bucket=self.bucket)[offset:offset+limit]
+        return self.s3.list_objects(Bucket=self.bucket)[offset:offset + limit]
 
     def get_object(self, id):
         obj = self.s3.get_object(Bucket=BLUEPRINT.config['storage'].name, Key=id)
@@ -295,9 +260,9 @@ class SwiftStorageBackend(IStorageBackend):
         self._opts = {'auth': self.auth_url, 'user': self.user, 'key': self.key,
                       'use_slo': True, 'segment_size': BLUEPRINT.config['BUFF'], 'auth_version': self.auth_version}
         self._opts = dict(
-                swiftclient.service._default_global_options,
-                **dict(swiftclient.service._default_local_options, **self._opts)
-            )
+            swiftclient.service._default_global_options,
+            **dict(swiftclient.service._default_local_options, **self._opts)
+        )
         swiftclient.service.process_options(self._opts)
         # Check to be sure our LTS container exists
         conn = self.create_connection()
@@ -471,18 +436,18 @@ def handle_configs(setup_state):
         # TODO
         raise NotImplemented("Yet")
 
+    app = setup_state.app
+    BLUEPRINT.config.update(app.config)
+    if BLUEPRINT.config.get('DEFER_CONFIG'):
+        log.debug("DEFER_CONFIG set, skipping configuration")
+        return
+
     storage_options = {
         "mongo": configure_mongo,
         "filesystem": configure_fs,
         "s3": configure_s3,
         "swift": configure_swift
     }
-
-    app = setup_state.app
-    BLUEPRINT.config.update(app.config)
-
-    if BLUEPRINT.config.get('DEFER_CONFIG'):
-        return
 
     if BLUEPRINT.config.get('STORAGE_BACKEND'):
         storage_choice = BLUEPRINT.config['STORAGE_BACKEND'].lower()
@@ -495,9 +460,12 @@ def handle_configs(setup_state):
             storage_options[storage_choice](BLUEPRINT)
 
     if BLUEPRINT.config.get("VERBOSITY"):
+        log.debug("Setting verbosity to {}".format(str(BLUEPRINT.config['VERBOSITY'])))
         logging.basicConfig(level=BLUEPRINT.config['VERBOSITY'])
     else:
+        log.debug("No verbosity option set, defaulting to WARN")
         logging.basicConfig(level="WARN")
+
 
 API.add_resource(Root, "/")
 API.add_resource(Object, "/<string:id>")

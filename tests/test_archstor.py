@@ -1,18 +1,35 @@
 import unittest
 import json
+from os import environ
 from uuid import uuid4
 from io import BytesIO
-from pymongo import MongoClient
 from tempfile import TemporaryDirectory
 
-from os import environ
+from pymongo import MongoClient
 
-environ['DEFER_CONFIG'] = "True"
+# Defer any configuration to the tests setUp()
+environ['ARCHSTOR_DEFER_CONFIG'] = "True"
 
 import archstor
 
 
+class PackageTests(unittest.TestCase):
+    def testVersionAvailable(self):
+        x = getattr(archstor, "__version__", None)
+        self.assertTrue(x is not None)
+
+
 class ArchstorTestCase:
+    def testVersion(self):
+        version_response = self.app.get("/version")
+        self.assertEqual(version_response.status_code, 200)
+        version_json = json.loads(version_response.data.decode())
+        api_reported_version = version_json['version']
+        self.assertEqual(
+            archstor.blueprint.__version__,
+            api_reported_version
+        )
+
     def response_200_json(self, rv):
         self.assertEqual(rv.status_code, 200)
         rt = rv.data.decode()
@@ -122,7 +139,7 @@ class MongoStorageTestCases(ArchstorTestCase, unittest.TestCase):
         archstor.blueprint.BLUEPRINT.config['storage'] = \
             archstor.blueprint.MongoStorageBackend(
                 'localhost', 27017, "testing"
-            )
+        )
 
     def tearDown(self):
         super().tearDown()
@@ -142,7 +159,7 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
         archstor.blueprint.BLUEPRINT.config['storage'] = \
             archstor.blueprint.FileSystemStorageBackend(
                 tmpdirpath
-            )
+        )
 
     def tearDown(self):
         del self.tmpdir
@@ -155,7 +172,7 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
         pass
 
 
-#class SwiftStorageTestCase(ArchstorTestCase, unittest.TestCase):
+# class SwiftStorageTestCase(ArchstorTestCase, unittest.TestCase):
 #    def setUp(self):
 #        archstor.app.config['TESTING'] = True
 #        self.app = archstor.app.test_client()
@@ -177,5 +194,5 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
 #                archstor.blueprint.BLUEPRINT.config['storage'].del_object(x)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
