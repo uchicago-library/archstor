@@ -8,7 +8,8 @@ def readme():
 
 setup(
     name="archstor",
-    description="Archstor is a web API wrapper which provides a simplified API for several object storage backends/interfaces.",
+    description="Archstor is a web API wrapper which provides a simplified API " +
+    "for several object storage backends/interfaces.",
     version="0.0.1",
     long_description=readme(),
     author="Brian Balsamo",
@@ -19,7 +20,7 @@ setup(
     ),
     include_package_data=True,
     url='https://github.com/bnbalsamo/archstor',
-    dependency_links = [
+    dependency_links=[
         'https://github.com/bnbalsamo/pypairtree' +
         '/tarball/master#egg=pypairtree'
     ],
