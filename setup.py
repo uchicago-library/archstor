@@ -19,10 +19,16 @@ setup(
     ),
     include_package_data=True,
     url='https://github.com/bnbalsamo/archstor',
+    dependency_links = [
+        'https://github.com/bnbalsamo/pypairtree' +
+        '/tarball/master#egg=pypairtree'
+    ],
     install_requires=[
         'flask>0',
         'flask_env',
-        'flask_restful'
+        'flask_restful',
+        'pypairtree',
+        'pymongo'
     ],
     tests_require=[
         'pytest'
