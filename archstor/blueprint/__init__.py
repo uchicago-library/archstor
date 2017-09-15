@@ -50,7 +50,9 @@ __version__ = "0.0.1"
 
 BLUEPRINT = Blueprint('archstor', __name__)
 
-BLUEPRINT.config = {}
+BLUEPRINT.config = {
+    'BUFF': 1024 * 10
+}
 
 API = Api(BLUEPRINT)
 
