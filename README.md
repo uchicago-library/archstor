@@ -19,16 +19,42 @@ Inject environmental variables appropriately at either buildtime or runtime
 # docker run -p 5000:80 archstor --name my_archstor
 ```
 
-# Endpoints
-## /
+### /
 ### GET
-#### Parameters
-* None
+#### Args
+- offset (int): A listing offset
+- limit (int): A suggested number of returned listing values
 #### Returns
-* JSON: {"status": "Not broken!"}
+```{"objects": ["identifier": <object_id>, "_link": <object_link> for each object in the listing], "pagination": {"cursor": <listing_cursor>, "limit": <listing_limit>, "next_cursor": <next_cursor_to_continue_listing>}}```
+
+---
+
+## /\<string:identifier\>
+### GET
+#### Returns
+The object bytestream
+### PUT
+#### Args
+- object: The bytestream to store
+#### Returns
+```{"identifier": <id>, "added": True}```
+### DELETE
+#### Returns
+```{"identifier": <id>, "deleted": True}```
+
+# Currently Supported Backends
+
+- GridFS
+- swift
+
+# On the docket
+
+- s3
+
 
 # Environmental Variables
-* None
+* #TODO
+
 
 # Author
 Brian Balsamo <brian@brianbalsamo.com>
