@@ -1,4 +1,4 @@
-M bnbalsamo/flask_stack
+FROM bnbalsamo/flask_stack
 ENV APP_NAME=archstor
 ARG SECRET_KEY="provideThisAtBuildTime"
 ARG STORAGE_BACKEND
