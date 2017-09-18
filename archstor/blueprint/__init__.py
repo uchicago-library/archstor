@@ -14,20 +14,20 @@ from flask_restful import Resource, Api, reqparse
 try:
     import boto3
     import botocore
-except:
+except ImportError:
     # Hope we're not using the s3 backend
     pass
 
 try:
     from pymongo import MongoClient, ASCENDING
     from gridfs import GridFS
-except:
+except ImportError:
     # Hope we're not using a mongo backend
     pass
 
 try:
     from pypairtree.utils import identifier_to_path
-except:
+except ImportError:
     # Hope we're not using a file system backend
     pass
 
@@ -35,11 +35,11 @@ try:
     import swiftclient
     import swiftclient.service
     from swiftclient.exceptions import ClientException
-except:
+except ImportError:
     # Hope we're not using a swift backend
     pass
 
-from .exceptions import Error, ServerError, NotFoundError, ObjectNotFoundError, \
+from .exceptions import Error, ObjectNotFoundError, \
     ObjectAlreadyExistsError, FunctionalityOmittedError, UserError
 
 
@@ -202,7 +202,8 @@ class FileSystemStorageBackend(IStorageBackend):
 class S3StorageBackend(IStorageBackend):
     # NOTE: THIS IS ENTIRELY UNTESTED
     # IT IS PRETTY MUCH A ROUGH DRAFT
-    def __init__(self, bucket_name, region_name=None, aws_access_key_id=None, aws_secret_access_key=None):
+    def __init__(self, bucket_name, region_name=None, aws_access_key_id=None,
+                 aws_secret_access_key=None):
         # Helper init for inheriting classes.
         self.s3 = boto3.client(
             's3', region_name=region_name, aws_access_key_id=aws_access_key_id,
@@ -258,7 +259,8 @@ class SwiftStorageBackend(IStorageBackend):
         self.os_options = os_options
         self.container_name = container_name
         self._opts = {'auth': self.auth_url, 'user': self.user, 'key': self.key,
-                      'use_slo': True, 'segment_size': BLUEPRINT.config['BUFF'], 'auth_version': self.auth_version}
+                      'use_slo': True, 'segment_size': BLUEPRINT.config['BUFF'],
+                      'auth_version': self.auth_version}
         self._opts = dict(
             swiftclient.service._default_global_options,
             **dict(swiftclient.service._default_local_options, **self._opts)
@@ -299,7 +301,8 @@ class SwiftStorageBackend(IStorageBackend):
     def get_object(self, id):
         try:
             conn = self.create_connection()
-            headers, contents = conn.get_object(self.container_name, id, resp_chunk_size=BLUEPRINT.config['BUFF'])
+            headers, contents = conn.get_object(
+                self.container_name, id, resp_chunk_size=BLUEPRINT.config['BUFF'])
             conn.close()
             return contents
         except ClientException as e:
@@ -325,7 +328,8 @@ class SwiftStorageBackend(IStorageBackend):
         if self.check_object_exists(id):
             raise ObjectAlreadyExistsError()
         conn = self.create_connection()
-        conn.put_object(self.container_name, id, contents=content, chunk_size=BLUEPRINT.config['BUFF'])
+        conn.put_object(self.container_name, id, contents=content,
+                        chunk_size=BLUEPRINT.config['BUFF'])
         conn.close()
 
     def del_object(self, id):
