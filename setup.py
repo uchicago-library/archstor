@@ -10,7 +10,7 @@ setup(
     name="archstor",
     description="Archstor is a web API wrapper which provides a simplified API " +
     "for several object storage backends/interfaces.",
-    version="0.1.0",
+    version="0.1.1",
     long_description=readme(),
     author="Brian Balsamo",
     author_email="brian@brianbalsamo.com",
