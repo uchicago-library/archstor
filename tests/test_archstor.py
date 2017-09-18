@@ -189,7 +189,8 @@ class FileSystemStrorageTestCase(ArchstorTestCase, unittest.TestCase):
 #    def tearDown(self):
 #        cursor = True
 #        while cursor:
-#            cursor, objs = archstor.blueprint.BLUEPRINT.config['storage'].get_object_id_list("0", None)
+#            cursor, objs = archstor.blueprint.BLUEPRINT.config['storage']\
+#                .get_object_id_list("0", None)
 #            for x in objs:
 #                archstor.blueprint.BLUEPRINT.config['storage'].del_object(x)
 
