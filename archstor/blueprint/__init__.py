@@ -45,7 +45,7 @@ from .exceptions import Error, ObjectNotFoundError, \
 
 __author__ = "Brian Balsamo"
 __email__ = "brian@brianbalsamo.com"
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 
 BLUEPRINT = Blueprint('archstor', __name__)
