@@ -2,7 +2,7 @@
 
 v0.1.2
 
-[![Build Status](https://travis-ci.org/bnbalsamo/archstor.svg?branch=master)](https://travis-ci.org/bnbalsamo/archstor) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/archstor/badge.svg?branch=master)](https://coveralls.io/github/bnbalsamo/archstor?branch=master)
+[![Build Status](https://travis-ci.org/uchicago-library/archstor.svg?branch=master)](https://travis-ci.org/uchicago-library/archstor) [![Coverage Status](https://coveralls.io/repos/github/uchicago-library/archstor/badge.svg?branch=master)](https://coveralls.io/github/uchicago-library/archstor?branch=master)
 
 Archstor is a web API wrapper which provides a simplified API for several object storage backends/interfaces.
 

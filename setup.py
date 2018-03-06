@@ -19,9 +19,9 @@ setup(
         ]
     ),
     include_package_data=True,
-    url='https://github.com/bnbalsamo/archstor',
+    url='https://github.com/uchicago-library/archstor',
     dependency_links=[
-        'https://github.com/bnbalsamo/pypairtree' +
+        'https://github.com/uchicago-library/pypairtree' +
         '/tarball/master#egg=pypairtree'
     ],
     install_requires=[
